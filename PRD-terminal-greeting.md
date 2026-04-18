@@ -2,7 +2,7 @@
 
 **Owner:** jay.lee@luladelivery.com
 **Date:** 2026-04-18
-**Status:** Draft v0.2
+**Status:** Draft v0.3
 **Platform:** macOS (zsh)
 
 ---
@@ -31,7 +31,14 @@ On every new interactive zsh shell, parse `oauthAccount.emailAddress` from `~/.c
 # Claude Code active-account reminder
 if [[ -o interactive ]] && [[ -f "$HOME/.claude.json" ]]; then
   _claude_email=$(python3 -c 'import json,os; print(json.load(open(os.path.expanduser("~/.claude.json"))).get("oauthAccount",{}).get("emailAddress","unknown"))' 2>/dev/null)
-  echo "Claude account: ${_claude_email:-unknown}"
+  _claude_display="${_claude_email:-unknown}"
+  _claude_inner="  ◆ Claude  ${_claude_display}  "
+  _claude_width=${#_claude_inner}
+  _claude_border=$(printf '─%.0s' $(seq 1 $_claude_width))
+  echo "\033[38;5;214m╭${_claude_border}╮\033[0m"
+  echo "\033[38;5;214m│\033[0m${_claude_inner}\033[38;5;214m│\033[0m"
+  echo "\033[38;5;214m╰${_claude_border}╯\033[0m"
+  unset _claude_display _claude_inner _claude_width _claude_border
   unset _claude_email
 fi
 ```
@@ -40,6 +47,8 @@ Key properties:
 - **Interactive-only** (`[[ -o interactive ]]`) — no noise in scripted/SSH-exec shells.
 - **File-guarded** (`[[ -f ... ]]`) — no error if `~/.claude.json` is missing (e.g. fresh install).
 - **Parse-guarded** (`2>/dev/null` + `:-unknown` fallback) — malformed JSON degrades to `Claude account: unknown`, never breaks the shell.
+- **Dynamic width** — box border auto-sizes to fit any email length.
+- **Orange color** (ANSI 214) — matches Claude's brand tone; degrades gracefully in terminals without 256-color support.
 - **No external deps beyond system Python 3** (ships with macOS).
 
 ### 4.2 Why dynamic read (vs. hardcoding)
@@ -62,18 +71,22 @@ Key properties:
 
 ```
 $ # open new terminal
-Claude account: jay.lee@luladelivery.com
+╭────────────────────────────────────────────╮
+│  ◆ Claude  jay.lee@luladelivery.com        │
+╰────────────────────────────────────────────╯
 jay@mac ~ %
 
 $ claude /login   # switch to personal account
 ...
 
 $ # open new terminal
-Claude account: jay.personal@gmail.com
+╭──────────────────────────────────────────╮
+│  ◆ Claude  jay.personal@gmail.com        │
+╰──────────────────────────────────────────╯
 jay@mac ~ %
 ```
 
-Banner always reflects `~/.claude.json` at shell-start time.
+Banner is orange (ANSI 214), auto-sized to email length, and always reflects `~/.claude.json` at shell-start time.
 
 ## 6. Implementation
 
